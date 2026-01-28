@@ -24,21 +24,21 @@ This system bridges the gap between **Operational Technology (OT)** and **Inform
 ```mermaid
 graph TD
     subgraph "Level 1: The Physical Layer (OT)"
-        A[Factory Floor Machines] -->|Telemetry| B(Edge Gateway / MQTT)
-        A2[Smart Lab Sensors] -->|High Freq Data| B
-        A3[Energy Meters] -->|CO2 Data| B
+        A["Factory Floor Machines"] -->|Telemetry| B("Edge Gateway / MQTT")
+        A2["Smart Lab Sensors"] -->|High Freq Data| B
+        A3["Energy Meters"] -->|CO2 Data| B
     end
 
     subgraph "Level 2: The Data Foundation (IT)"
-        B -->|Stream| C{Unified Data Lake<br/>(Snowflake / Fabric)}
-        C -->|Context| D[ERP / SAP Integration]
-        C -->|Intelligence| E[AI Engine]
+        B -->|Stream| C{"Unified Data Lake (Snowflake / Fabric)"}
+        C -->|Context| D["ERP / SAP Integration"]
+        C -->|Intelligence| E["AI Engine"]
     end
 
     subgraph "Level 3: The Three-Dashboard Arsenal"
-        C -->|Aggregated KPIs| D1[1. Factory Command Center<br/>(Macro View)]
-        E -->|Real-time Alerts| D2[2. InQube Smart Lab<br/>(Micro View)]
-        C -->|Compliance Data| D3[3. Carbon Intelligence<br/>(Strategic View)]
+        C -->|Aggregated KPIs| D1["1. Factory Command Center (Macro View)"]
+        E -->|Real-time Alerts| D2["2. InQube Smart Lab (Micro View)"]
+        C -->|Compliance Data| D3["3. Carbon Intelligence (Strategic View)"]
     end
 
     style D1 fill:#3b82f6,stroke:#fff,stroke-width:2px,color:#fff
