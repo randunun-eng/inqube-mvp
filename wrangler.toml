@@ -1,4 +1,4 @@
 
-name = "inqube-mvp"
-main = "worker.js"
+name = "inqube-demo"
+main = "inqube-demo.js"
 compatibility_date = "2024-01-01"
