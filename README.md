@@ -17,62 +17,39 @@ This repository hosts three distinct dashboards, each serving a specific strateg
 
 ---
 
-## 🧠 System Architecture
+## 🏗️ The "Three-Dashboard" Architecture
 
-### 1. The Data Pipeline
-How we turn physical machine signals into business intelligence.
-
-```mermaid
-graph LR
-    subgraph "OT Layer (Factory Floor)"
-        A[IoT Sensors] -->|MQTT| D[Unified Data Lake]
-        B[PLCs / SCADA] -->|OPC-UA| D
-        C[Energy Meters] -->|Modbus| D
-    end
-
-    subgraph "IT Layer (Cloud)"
-        D[(Snowflake / Fabric)] -->|Stream| E{AI Engine}
-        E -->|Analyze| F[Anomaly Detection]
-        E -->|Calculate| G[Carbon Footprint]
-    end
-
-    subgraph "Action Layer (User)"
-        F -->|Alerts| H[Dashboards]
-        G -->|Reports| H
-        H -->|Decision| I((Plant Manager))
-    end
-
-    I -->|Control Signal| A
-    style D fill:#4f46e5,stroke:#fff,stroke-width:2px,color:#fff
-    style E fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
-    style H fill:#f59e0b,stroke:#fff,stroke-width:2px,color:#fff
-```
-
-### 2. The AI Decision Loop (Agentic Workflow)
-How the "Smart Lab" dashboard prevents defects before they happen.
+This system bridges the gap between **Operational Technology (OT)** and **Information Technology (IT)**, feeding three distinct views from a single unified data lake.
 
 ```mermaid
-sequenceDiagram
-    participant S as Sensor (T-802)
-    participant L as Data Lake
-    participant AI as InQube AI
-    participant D as Dashboard
-    participant U as Operator
+graph TD
+    subgraph "Level 1: The Physical Layer (OT)"
+        A[Factory Floor Machines] -->|Telemetry| B(Edge Gateway / MQTT)
+        A2[Smart Lab Sensors] -->|High Freq Data| B
+        A3[Energy Meters] -->|CO2 Data| B
+    end
 
-    Note over S, U: Real-time Monitoring
-    S->>L: Telemetry: 176°C (Drifting)
-    L->>AI: Stream Update
-    AI->>AI: Detect Pattern (Quality Risk)
-    
-    Note over AI, U: Intervention
-    AI->>D: Trigger Alert #47
-    D->>U: Recommendation: Increase Setpoint +3°C
-    
-    Note over U, S: Resolution
-    U->>D: Approve Action
-    D->>S: Adjust Heater Parameters
-    D->>AI: Log Success (Reinforcement Learning)
+    subgraph "Level 2: The Data Foundation (IT)"
+        B -->|Stream| C{Unified Data Lake<br/>(Snowflake / Fabric)}
+        C -->|Context| D[ERP / SAP Integration]
+        C -->|Intelligence| E[AI Engine]
+    end
+
+    subgraph "Level 3: The Three-Dashboard Arsenal"
+        C -->|Aggregated KPIs| D1[1. Factory Command Center<br/>(Macro View)]
+        E -->|Real-time Alerts| D2[2. InQube Smart Lab<br/>(Micro View)]
+        C -->|Compliance Data| D3[3. Carbon Intelligence<br/>(Strategic View)]
+    end
+
+    style D1 fill:#3b82f6,stroke:#fff,stroke-width:2px,color:#fff
+    style D2 fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
+    style D3 fill:#f59e0b,stroke:#fff,stroke-width:2px,color:#fff
 ```
+
+### Strategic Alignment
+*   **Dashboard #1 (Blue):** Solves the **Executive** need for visibility.
+*   **Dashboard #2 (Green):** Solves the **Engineering** need for predictive quality (Agentic AI).
+*   **Dashboard #3 (Orange):** Solves the **Sustainability** need for UNGC/SBTi compliance.
 
 ---
 
