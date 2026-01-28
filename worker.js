@@ -168,11 +168,11 @@ export default {
     <div class="p-4 border-t border-slate-800">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-accent-400 flex items-center justify-center text-xs font-bold text-slate-900">
-          JD
+          BC
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-white truncate">John Doe</p>
-          <p class="text-xs text-slate-500 truncate">Plant Manager</p>
+          <p class="text-sm font-medium text-white truncate">Buddhi Chndrasena</p>
+          <p class="text-xs text-slate-500 truncate">Chief of Staff - Corporate</p>
         </div>
         <i class="ph ph-caret-down text-slate-500"></i>
       </div>
