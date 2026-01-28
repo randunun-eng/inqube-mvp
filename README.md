@@ -3,6 +3,8 @@
 > **Bridging the gap between Operational Technology (OT) and Information Technology (IT).**
 > A comprehensive suite of dashboards for the modern smart factory.
 
+![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
 ---
 
 ## 🌐 Live Demonstrations
