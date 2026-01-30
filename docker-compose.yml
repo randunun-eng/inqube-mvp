@@ -4,15 +4,6 @@ services:
   nginx:
     image: nginx:alpine
     container_name: inqube-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - api
-
   api:
     build: ./backend
     container_name: inqube-api
@@ -24,21 +15,27 @@ services:
     expose:
       - "8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/inqube
+      - POSTGRES_USER=${POSTGRES_USER:-inqube_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-inqube_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-inqube_user}:${POSTGRES_PASSWORD:-changeme}@db/${POSTGRES_DB:-inqube_db}
       - REDIS_URL=redis://redis:6379/0
+      - MQTT_BROKER_HOST=mqtt
+      - MQTT_BROKER_PORT=1883
     depends_on:
       - db
       - redis
+      - mqtt
 
   db:
-    image: postgres:15-alpine
+    image: timescale/timescaledb:latest-pg15
     container_name: inqube-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-inqube_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-inqube_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=inqube
     ports:
       - "5432:5432"
 
@@ -48,5 +45,20 @@ services:
     ports:
       - "6379:6379"
 
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: inqube-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt/config:/mosquitto/config
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+
 volumes:
   postgres_data:
+  mqtt_data:
+  mqtt_log:
+
+
