@@ -1,8 +1,63 @@
 # CHANGELOG - InQube Backend Implementation
 
+## [1.1.0] - 2026-01-30
+
+### Added - Phase 3: Real-time Data Infrastructure ✅
+
+#### MQTT Broker
+- **`docker-compose.yml`**
+  - Added Mosquitto MQTT broker service
+  - Exposed ports 1883 (MQTT) and 9001 (WebSocket)
+  - Configured persistent volumes for broker data
+
+- **`mqtt/config/mosquitto.conf`**
+  - Basic Mosquitto configuration
+  - Anonymous access enabled (for development)
+
+#### Telemetry Model
+- **`backend/models/telemetry.py`**
+  - Time-series data model for IoT sensor readings
+  - Fields: sensor_id, timestamp, value, unit, status
+  - Designed for TimescaleDB hypertable optimization
+
+#### Database Migrations
+- **`backend/alembic/versions/001_initial_schema.py`**
+  - Initial migration for User, Factory, Sensor tables
+  - UUID primary keys, proper indexes
+  
+- **`backend/alembic/versions/002_add_telemetry.py`**
+  - Telemetry table creation
+  - TimescaleDB hypertable conversion for efficient time-series queries
+
+#### API Endpoints
+- **`backend/api/v1/endpoints/telemetry.py`**
+  - `GET /api/v1/telemetry/latest` - Fetch latest sensor readings
+  - `GET /api/v1/telemetry/history` - Query historical data with time ranges
+  - Support for sensor filtering and pagination
+
+- **`backend/api/v1/endpoints/websocket.py`**
+  - `WS /api/v1/ws/telemetry` - Real-time data streaming
+  - ConnectionManager for managing WebSocket clients
+  - Broadcasts updates every 3 seconds
+
+#### Infrastructure Updates
+- **`backend/requirements.txt`**
+  - Added `websockets==12.0` for WebSocket support
+  - Added `paho-mqtt==1.6.1` for MQTT client
+  - Added `sqlalchemy==2.0.25` and `alembic==1.13.1`
+
+### Changed
+- **`docker-compose.yml`**
+  - Upgraded from `postgres:15-alpine` to `timescale/timescaledb:latest-pg15`
+  - Added environment variables for MQTT broker connection
+  - Nginx service prepared for production SSL
+
+---
+
 ## [1.0.0] - 2026-01-30
 
 ### Added - Phase 2: Authentication & Security ✅
+
 
 #### Core Security Module
 - **`backend/core/security.py`**
