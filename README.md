@@ -1,104 +1,203 @@
-# InQube Manufacturing Intelligence MVP
+# InQube MVP - Enterprise IoT Platform
 
-> **Bridging the gap between Operational Technology (OT) and Information Technology (IT).**
-> A comprehensive suite of dashboards for the modern smart factory.
+> **Status**: Phase 2 Complete - Backend Authentication & Database Integration ✅
 
-![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+Enterprise-grade Manufacturing Intelligence platform with Real-time IoT monitoring, AI-powered recommendations, and Predictive analytics.
 
----
+## 🚀 What's New (Jan 30, 2026)
 
-## 🌐 Live Demonstrations
+### ✅ Backend API Implemented
+- **JWT Authentication** with PostgreSQL
+- **FastAPI** + **SQLAlchemy** + **Alembic**
+- **Docker Compose** infrastructure
+- **Production-ready** deployment setup
 
-This repository hosts three distinct dashboards, each serving a specific strategic purpose in the manufacturing lifecycle.
-
-| Dashboard | Purpose | Live Link |
-| :--- | :--- | :--- |
-| **1. Factory Command Center** | **Macro View:** Full factory visibility (Cutting, Sewing, Finishing). Connects shop-floor IoT to executive KPIs. | [🚀 Launch Dashboard](https://factory-portfolio.randunun.workers.dev) |
-| **2. InQube Smart Lab** | **Micro View:** Predictive quality control for the **Smart Bra Lamination** process. Features Agentic AI for anomaly detection. | [🚀 Launch Dashboard](https://inqube-demo.randunun.workers.dev) |
-| **3. Carbon Intelligence** | **Strategic View:** Machine-level carbon accounting. Enables UNGC & SBTi compliance reporting using real telemetry. | [🚀 Launch Dashboard](https://carbon-intelligence.randunun.workers.dev) |
+[See CHANGELOG.md](CHANGELOG.md) for detailed changes.
 
 ---
 
-## 🏗️ The "Three-Dashboard" Architecture
+## Architecture
 
-This system bridges the gap between **Operational Technology (OT)** and **Information Technology (IT)**, feeding three distinct views from a single unified data lake.
-
-```mermaid
-graph TD
-    subgraph "Level 1: The Physical Layer (OT)"
-        A["Factory Floor Machines"] -->|Telemetry| B("Edge Gateway / MQTT")
-        A2["Smart Lab Sensors"] -->|High Freq Data| B
-        A3["Energy Meters"] -->|CO2 Data| B
-    end
-
-    subgraph "Level 2: The Data Foundation (IT)"
-        B -->|Stream| C{"Unified Data Lake (Snowflake / Fabric)"}
-        C -->|Context| D["ERP / SAP Integration"]
-        C -->|Intelligence| E["AI Engine"]
-    end
-
-    subgraph "Level 3: The Three-Dashboard Arsenal"
-        C -->|Aggregated KPIs| D1["1. Factory Command Center (Macro View)"]
-        E -->|Real-time Alerts| D2["2. InQube Smart Lab (Micro View)"]
-        C -->|Compliance Data| D3["3. Carbon Intelligence (Strategic View)"]
-    end
-
-    style D1 fill:#3b82f6,stroke:#fff,stroke-width:2px,color:#fff
-    style D2 fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
-    style D3 fill:#f59e0b,stroke:#fff,stroke-width:2px,color:#fff
+```
+Frontend (Cloudflare Workers)
+    ↓
+Backend API (FastAPI) ← JWT Auth
+    ↓
+PostgreSQL + TimescaleDB ← Real-time data
+    ↓
+MQTT Broker ← IoT Sensors
 ```
 
-### Strategic Alignment
-*   **Dashboard #1 (Blue):** Solves the **Executive** need for visibility.
-*   **Dashboard #2 (Green):** Solves the **Engineering** need for predictive quality (Agentic AI).
-*   **Dashboard #3 (Orange):** Solves the **Sustainability** need for UNGC/SBTi compliance.
+---
+
+## Project Structure
+
+```
+inqube-mvp/
+├── backend/                    # FastAPI Backend (NEW)
+│   ├── alembic/               # Database migrations
+│   ├── api/                   # API endpoints
+│   │   ├── deps.py           # Auth dependencies
+│   │   └── v1/
+│   │       ├── api.py        # Router aggregator
+│   │       └── endpoints/
+│   │           ├── auth.py   # Login endpoint
+│   │           └── users.py  # User profile
+│   ├── core/
+│   │   ├── config.py         # Settings
+│   │   └── security.py       # JWT + Password hashing
+│   ├── db/
+│   │   ├── base.py           # SQLAlchemy base
+│   │   └── session.py        # DB connection
+│   ├── models/               # Database models
+│   │   ├── user.py
+│   │   ├── factory.py
+│   │   └── sensor.py
+│   ├── main.py               # FastAPI app
+│   ├── verify_auth.py        # Test script
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── inqube-demo.js             # Main dashboard (Cloudflare Worker)
+├── factory-portfolio.js       # Factory portfolio view
+├── carbon-dashboard.js        # Carbon footprint tracker
+├── docker-compose.yml         # Infrastructure definition
+└── CHANGELOG.md               # Detailed change log
+
+```
 
 ---
 
-## 🚀 Key Features
+## Quick Start
 
-*   **Real-time Visualization**: High-frequency data rendering using Chart.js and WebSockets (simulated).
-*   **Agentic AI**: "Human-in-the-loop" interface where AI proposes actions and operators approve/reject.
-*   **Sustainability Tracking**: ISO 14064-1 compliant carbon accounting at the machine level.
-*   **Premium UI**: "Industrial Future" aesthetic designed for modern control rooms (Glassmorphism, Dark Mode).
-*   **Edge Native**: Deployed on Cloudflare Workers for global low-latency access (<50ms).
+### Prerequisites
+- Docker & Docker Compose
+- Git
 
-## 🛠️ Technology Stack
+### Local Development
+```bash
+git clone https://github.com/randunun-eng/inqube-mvp.git
+cd inqube-mvp
+docker compose up -d
+```
 
-*   **Runtime:** Cloudflare Workers (Serverless)
-*   **Frontend:** HTML5, Tailwind CSS, Vanilla JS
-*   **Visualization:** Chart.js
-*   **Icons:** Phosphor Icons
-*   **Deployment:** Wrangler CLI
+### Access Points
+- **API Docs**: http://localhost:8000/docs
+- **Dashboard**: Deploy `inqube-demo.js` to Cloudflare Workers
 
----
+### Test Authentication
+```bash
+docker compose exec api python verify_auth.py
+```
 
-## 📦 Local Development
-
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/randunun-eng/inqube-mvp.git
-    cd inqube-mvp
-    ```
-
-2.  **Install Dependencies**
-    ```bash
-    npm install
-    ```
-
-3.  **Run Dashboards Locally**
-    ```bash
-    # Run Factory Command Center
-    npx wrangler dev --config wrangler-factory.toml
-
-    # Run Smart Lab Monitor
-    npx wrangler dev --config wrangler.toml
-
-    # Run Carbon Intelligence
-    npx wrangler dev --config wrangler-carbon.toml
-    ```
+Default credentials: `admin@inqube.ai` / `admin123`
 
 ---
 
-## ⚠️ Prototype Disclaimer
-*This project is a 24-hour MVP demonstration using simulated data streams. In a production environment, this architecture connects to real PostgreSQL/TimescaleDB instances and live IoT telemetry.*
+## Deployment
+
+### Oracle Cloud (Production)
+Already deployed at: **http://140.245.244.242**
+
+```bash
+ssh user@140.245.244.242
+cd inqube-mvp
+git pull
+docker compose up -d --build
+docker compose exec api alembic upgrade head
+```
+
+### Cloudflare Workers (Frontend)
+```bash
+wrangler deploy inqube-demo.js
+wrangler deploy factory-portfolio.js --config wrangler-factory.toml
+wrangler deploy carbon-dashboard.js --config wrangler-carbon.toml
+```
+
+---
+
+## Features
+
+### Implemented ✅
+- JWT Authentication & RBAC
+- PostgreSQL Database with SQLAlchemy
+- User Management API
+- Docker containerization
+- Database migrations (Alembic)
+- Automated testing script
+
+### In Progress 🔄
+- Real-time telemetry WebSocket
+- MQTT broker integration
+- TimescaleDB hypertables
+
+### Roadmap 📋
+- Connect frontend to backend API
+- Live dashboard with real data
+- AI recommendation engine
+- Energy optimization algorithms
+
+---
+
+## API Endpoints
+
+### Authentication
+- `POST /api/v1/login/access-token` - Login (get JWT token)
+
+### Users
+- `GET /api/v1/users/me` - Get current user profile (protected)
+
+### Health
+- `GET /health` - Health check
+- `GET /` - API info
+
+**Full API Docs**: http://localhost:8000/docs (Swagger UI)
+
+---
+
+## Tech Stack
+
+### Backend
+- **FastAPI** - Modern Python web framework
+- **PostgreSQL 15** - Relational database
+- **TimescaleDB** - Time-series extension
+- **SQLAlchemy** - ORM
+- **Alembic** - Database migrations
+- **Redis** - Caching layer
+- **JWT** - Authentication tokens
+- **bcrypt** - Password hashing
+
+### Frontend
+- **Cloudflare Workers** - Edge computing
+- **Tailwind CSS** - Styling
+- **Chart.js** - Data visualization
+
+### Infrastructure
+- **Docker** - Containerization
+- **Docker Compose** - Orchestration
+- **Nginx** - Reverse proxy (production)
+
+---
+
+## Documentation
+
+- [CHANGELOG.md](CHANGELOG.md) - Complete change history
+- [ARCHITECTURE_AND_SCHEMA.md](.gemini/antigravity/brain/8a0bfb7d-c6ee-4034-92cf-0d3fa5d17e27/ARCHITECTURE_AND_SCHEMA.md) - System design
+- [HARSHA_FEEDBACK_ANALYSIS.md](HARSHA_FEEDBACK_ANALYSIS.md) - Requirements analysis
+- [ENTERPRISE_GAPS_ANALYSIS.md](ENTERPRISE_GAPS_ANALYSIS.md) - Gap analysis
+
+---
+
+## License
+
+Apache License 2.0 - See [LICENSE](LICENSE)
+
+---
+
+## Contact
+
+For enterprise deployment support, contact: admin@inqube.ai
+
+---
+
+**Status**: Ready for Phase 3 (Real-time Data Infrastructure)

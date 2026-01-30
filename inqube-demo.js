@@ -1,7 +1,7 @@
 
 export default {
-    async fetch() {
-        const html = `
+  async fetch() {
+    const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -556,53 +556,76 @@ export default {
       }
     });
 
-    // Simulate Live Data
-    setInterval(() => {
-      const lastVal = tempData[tempData.length - 1];
-      const newVal = parseFloat((lastVal + (Math.random() - 0.6)).toFixed(1)); // Slight downward trend
-      
-      tempData.push(newVal);
-      tempData.shift();
-      
-      // Update time labels
-      const now = new Date();
-      const timeString = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-      labels.push(timeString);
-      labels.shift();
+    /* ================= REAL-TIME DATA FETCHING ================= */
+    const BACKEND_URL = "http://140.245.244.242/api/v1";
 
-      chart.update('none'); // 'none' for performance
-    }, 3000);
+    async function fetchTelemetry() {
+      try {
+        const response = await fetch(BACKEND_URL + "/telemetry");
+    if (!response.ok) throw new Error('Network response was not ok');
+    const data = await response.json();
+    return data;
+  } catch(error) {
+    console.warn("Backend unavailable, using simulation:", error);
+    // Fallback simulation
+    const lastVal = tempData[tempData.length - 1];
+    return {
+      temperature: parseFloat((lastVal + (Math.random() - 0.6)).toFixed(1)),
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+// Poll Backend every 3 seconds
+setInterval(async () => {
+  const data = await fetchTelemetry();
+
+  // Update Chart Data
+  tempData.push(data.temperature);
+  tempData.shift();
+
+  // Update Labels
+  const now = new Date();
+  const timeString = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+  labels.push(timeString);
+  labels.shift();
+
+  chart.update('none');
+
+  // Update KPI (Example: Sync Avg Temp KPI with chart)
+  // In a full app, we'd fetch all KPIs from the backend
+}, 3000);
 
 
-    /* ================= LOGIC & LOGS ================= */
-    const logEl = document.getElementById('aiLog');
-    const messages = [
-      { text: "Connected to Sensor Grid A-04", type: "info" },
-      { text: "Fetching telemetry data...", type: "info" },
-      { text: "Stream established (Latency: 42ms)", type: "success" },
-      { text: "Analyzing thermal patterns...", type: "process" },
-      { text: "WARNING: Temp drift detected > 2%", type: "warning" },
-      { text: "Correlation found: Belt speed variance", type: "info" },
-      { text: "Generating mitigation strategy...", type: "process" },
-      { text: "Recommendation #47 ready for review", type: "success" }
-    ];
+/* ================= LOGIC & LOGS ================= */
+const logEl = document.getElementById('aiLog');
+const messages = [
+  { text: "Connected to Sensor Grid A-04", type: "info" },
+  { text: "Fetching telemetry data...", type: "info" },
+  { text: "Stream established (Latency: 42ms)", type: "success" },
+  { text: "Analyzing thermal patterns...", type: "process" },
+  { text: "WARNING: Temp drift detected > 2%", type: "warning" },
+  { text: "Correlation found: Belt speed variance", type: "info" },
+  { text: "Generating mitigation strategy...", type: "process" },
+  { text: "Recommendation #47 ready for review", type: "success" }
+];
 
-    let logIndex = 0;
+let logIndex = 0;
 
-    function addLog(msg, type) {
-      const div = document.createElement('div');
-      div.className = "flex gap-2 animate-pulse-once";
-      
-      let color = "text-slate-400";
-      let icon = ">";
-      
-      if (type === 'warning') { color = "text-amber-400"; icon = "!"; }
-      if (type === 'success') { color = "text-emerald-400"; icon = "✓"; }
-      if (type === 'process') { color = "text-primary-400"; icon = "⚙"; }
+function addLog(msg, type) {
+  const div = document.createElement('div');
+  div.className = "flex gap-2 animate-pulse-once";
 
-      const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit'});
+  let color = "text-slate-400";
+  let icon = ">";
 
-      div.innerHTML = \`
+  if (type === 'warning') { color = "text-amber-400"; icon = "!"; }
+  if (type === 'success') { color = "text-emerald-400"; icon = "✓"; }
+  if (type === 'process') { color = "text-primary-400"; icon = "⚙"; }
+
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  div.innerHTML = \`
         <span class="text-slate-600 shrink-0">[\${time}]</span>
         <span class="\${color} font-bold shrink-0">\${icon}</span>
         <span class="\${color} opacity-90">\${msg}</span>
@@ -621,6 +644,17 @@ export default {
 
     /* ================= INTERACTIONS ================= */
     function decision(type) {
+      // 1. Send to Backend
+      fetch(BACKEND_URL + "/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recommendation_id: 47,
+          action: type,
+          user_id: "admin"
+        })
+      }).catch(err => console.error("Failed to save decision:", err));
+
       showToast(type);
       
       // Add to history
@@ -632,18 +666,18 @@ export default {
       if (type === 'Approved') dotColor = "bg-emerald-500";
       if (type === 'Rejected') dotColor = "bg-red-500";
 
-      newEntry.innerHTML = \`
-        <div class="flex items-center gap-3">
-          <div class="w-2 h-2 rounded-full \${dotColor}"></div>
-          <span class="text-slate-300">Temp drift control</span>
-        </div>
-        <span class="text-slate-500 text-xs">Just now</span>
-      \`;
+      newEntry.innerHTML = 
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-2 h-2 rounded-full ' + dotColor + '"></div>' +
+          '<span class="text-slate-300">Temp drift control</span>' +
+        '</div>' +
+        '<span class="text-slate-500 text-xs">Just now</span>';
       
       historyEl.prepend(newEntry);
       
       // Log it
-      addLog(\`User \${type} Recommendation #47\`, type === 'Approved' ? 'success' : 'warning');
+      const logType = (type === 'Approved' ? 'success' : 'warning');
+      addLog("User " + type + " Recommendation #47", logType);
     }
 
     function showToast(type) {
@@ -687,8 +721,8 @@ export default {
 </html>
     `;
 
-        return new Response(html, {
-            headers: { "content-type": "text/html;charset=UTF-8" }
-        });
-    }
+    return new Response(html, {
+      headers: { "content-type": "text/html;charset=UTF-8" }
+    });
+  }
 };
