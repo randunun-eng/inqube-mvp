@@ -33,7 +33,11 @@ def upgrade() -> None:
     op.create_index(op.f('ix_telemetry_timestamp'), 'telemetry', ['timestamp'], unique=False)
     
     # Enable TimescaleDB hypertable for efficient time-series queries
-    op.execute("SELECT create_hypertable('telemetry', 'timestamp');")
+    # Use if_not_exists to prevent errors on re-run
+    try:
+        op.execute("SELECT create_hypertable('telemetry', 'timestamp', if_not_exists => TRUE);")
+    except Exception as e:
+        print(f"Warning: Could not create hypertable: {e}")
 
 
 def downgrade() -> None:

@@ -4,6 +4,12 @@ services:
   nginx:
     image: nginx:alpine
     container_name: inqube-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
   api:
     build: ./backend
     container_name: inqube-api
@@ -56,9 +62,38 @@ services:
       - mqtt_data:/mosquitto/data
       - mqtt_log:/mosquitto/log
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: inqube-n8n
+    restart: always
+    # ports:
+    #   - "5678:5678"  <-- Removed to avoid conflict, access via Nginx
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-password}
+      - N8N_HOST=${DOMAIN_NAME:-eurovolt.online}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_SECURE_COOKIE=false
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://${DOMAIN_NAME:-eurovolt.online}/n8n/
+      - N8N_PATH=/n8n/
+      - EXECUTIONS_PROCESS=main
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - db
+      - redis
+
 volumes:
   postgres_data:
   mqtt_data:
   mqtt_log:
+  n8n_data:
 
 

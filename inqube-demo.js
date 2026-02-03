@@ -1,6 +1,41 @@
 
 export default {
-  async fetch() {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // ================= PROXY LOGIC (Bypass CORS) =================
+    if (url.pathname.startsWith('/api/proxy')) {
+      // Strip /api/proxy (length 10)
+      // Example: /api/proxy/api/v1/login -> /api/v1/login
+      const path = url.pathname.slice(10);
+      const targetUrl = "http://eurovolt.online" + path + url.search;
+
+      console.log(`Proxying: ${url.pathname} -> ${targetUrl}`);
+
+      // Recreate request for the target
+      const proxyReq = new Request(targetUrl, {
+        method: request.method,
+        headers: request.headers, // Forwards Auth, Content-Type, etc.
+        body: request.body,
+        redirect: 'follow'
+      });
+
+      try {
+        const response = await fetch(proxyReq);
+        // Recreate response to ensure mutable headers if needed
+        const newRes = new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: new Headers(response.headers)
+        });
+        // Ensure CORS is allowed
+        newRes.headers.set("Access-Control-Allow-Origin", "*");
+        return newRes;
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 502 });
+      }
+    }
+
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -121,6 +156,12 @@ export default {
       pointer-events: none;
       transform: translate(-50%, 0);
       transition: all .1s ease;
+    }
+
+    /* Login Modal */
+    #loginModal {
+        backdrop-filter: blur(16px);
+        background: rgba(2, 6, 23, 0.8);
     }
   </style>
 </head>
@@ -477,6 +518,51 @@ export default {
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center fade-in">
+    <div class="glass-panel p-8 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl relative">
+        <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="text-center mb-8 relative z-10">
+            <div class="flex items-center justify-center gap-2 text-primary-400 mb-2">
+                <i class="ph-fill ph-hexagon text-3xl"></i>
+                <span class="text-2xl font-bold tracking-wide text-white">InQube<span class="font-light text-slate-400">.ai</span></span>
+            </div>
+            <p class="text-slate-400 text-sm">Enterprise Manufacturing Intelligence</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4 relative z-10">
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1 ml-1">WORK EMAIL</label>
+                <div class="relative">
+                    <i class="ph ph-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="email" id="email" required value="admin@inqube.com" 
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-all">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1 ml-1">PASSWORD</label>
+                <div class="relative">
+                    <i class="ph ph-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="password" id="password" required value="password123" 
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-all">
+                </div>
+            </div>
+
+            <div id="loginError" class="text-red-400 text-xs text-center hidden bg-red-500/10 p-2 rounded">
+                Invalid credentials. Please try again.
+            </div>
+
+            <button type="submit" id="loginBtn" class="w-full bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-primary-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                <span>Sign In</span>
+                <i class="ph ph-arrow-right"></i>
+            </button>
+        </form>
+    </div>
+  </div>
+
   <script>
     /* ================= CHART CONFIG ================= */
     const ctx = document.getElementById('tempChart').getContext('2d');
@@ -557,47 +643,157 @@ export default {
     });
 
     /* ================= REAL-TIME DATA FETCHING ================= */
-    const BACKEND_URL = "http://140.245.244.242/api/v1";
+    // Use the Worker Proxy to bypass CORS
+    const BACKEND_URL = "/api/proxy"; 
+    
+    // WebSockets usually bypass CORS, so we can try direct connection first
+    const WS_URL = "ws://140.245.244.242/api/v1/ws";
+    
+    let token = null;
+
+    // Check Authentication
+    function checkAuth() {
+        // Since this runs in browser inside worker response, we simulate localStorage check
+        // Ideally, we'd use cookies, but for this demo:
+        const modal = document.getElementById('loginModal');
+        // Initial state: Show modal
+        modal.classList.remove('hidden');
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn = document.getElementById('loginBtn');
+        const err = document.getElementById('loginError');
+
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Authenticating...';
+        btn.disabled = true;
+        err.classList.add('hidden');
+
+        try {
+            // Updated to x-www-form-urlencoded as per OAuth2 spec which FastAPI uses
+            const params = new URLSearchParams();
+            params.append('username', email);
+            params.append('password', password);
+
+            const res = await fetch(\`\${BACKEND_URL}/api/v1/login/access-token\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params
+            });
+
+            if(!res.ok) throw new Error('Auth failed');
+
+            const data = await res.json();
+            token = data.access_token;
+            
+            // Success
+            document.getElementById('loginModal').classList.add('hidden');
+            showToast('Approved'); // Reuse toast for "Welcome"
+            
+            // Start Data Stream
+            startDataStream();
+            connectWebSocket();
+
+        } catch (error) {
+            console.error(error);
+            btn.innerHTML = '<span>Sign In</span><i class="ph ph-arrow-right"></i>';
+            btn.disabled = false;
+            err.classList.remove('hidden');
+            err.innerText = "Connection failed. Check API status.";
+        }
+    }
 
     async function fetchTelemetry() {
+      if (!token) return { temperature: 180, timestamp: new Date() }; // Default if no token
+
       try {
-        const response = await fetch(BACKEND_URL + "/telemetry");
-    if (!response.ok) throw new Error('Network response was not ok');
-    const data = await response.json();
-    return data;
-  } catch(error) {
-    console.warn("Backend unavailable, using simulation:", error);
-    // Fallback simulation
-    const lastVal = tempData[tempData.length - 1];
-    return {
-      temperature: parseFloat((lastVal + (Math.random() - 0.6)).toFixed(1)),
-      timestamp: new Date().toISOString()
-    };
-  }
-}
+        const response = await fetch(BACKEND_URL + "/api/v1/telemetry", {
+             headers: { "Authorization": \`Bearer \${token}\` }
+        });
+        if (!response.ok) throw new Error('API Error');
+        const data = await response.json();
+        // Return latest data point
+        return data.length > 0 ? data[data.length - 1] : { temperature: 0 }; 
+      } catch(error) {
+        console.warn("Backend unavailable:", error);
+        return { temperature: 0, timestamp: new Date() };
+      }
+    }
 
-// Poll Backend every 3 seconds
-setInterval(async () => {
-  const data = await fetchTelemetry();
+    // Initialize
+    checkAuth();
 
-  // Update Chart Data
-  tempData.push(data.temperature);
-  tempData.shift();
-
-  // Update Labels
-  const now = new Date();
-  const timeString = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-  labels.push(timeString);
-  labels.shift();
-
-  chart.update('none');
-
-  // Update KPI (Example: Sync Avg Temp KPI with chart)
-  // In a full app, we'd fetch all KPIs from the backend
-}, 3000);
+    function startDataStream() {
+        // Poll Backend every 3 seconds as fallback/primary
+        setInterval(async () => {
+            const data = await fetchTelemetry();
+            if (data && data.temperature) {
+                updateChart(data.temperature);
+            }
+        }, 3000);
+    }
 
 
-/* ================= LOGIC & LOGS ================= */
+
+    /* ================= WEBSOCKET ================= */
+    let socket;
+    function connectWebSocket() {
+        if (!token) return;
+        
+        // WS endpoint: /api/v1/ws/{client_id}
+        // Using a random client ID
+        const clientId = Math.floor(Math.random() * 100000);
+        socket = new WebSocket(\`\${WS_URL}/\${clientId}?token=\${token}\`);
+
+        socket.onopen = () => {
+            addLog("Connected to Live Data Stream", "success");
+            document.querySelector('.status-indicator').classList.add('status-good');
+        };
+
+        socket.onmessage = (event) => {
+            const msg = event.data;
+            if (msg.includes("telemetry")) {
+                // Parse telemetry if it's JSON
+                try {
+                     // Assuming format "New telemetry: {...}" or just JSON
+                     // Adjust based on your backend WS implementation
+                     // For now, let's handle the chart update here if data comes in
+                     // const data = JSON.parse(msg); 
+                     // updateChart(data.temperature);
+                } catch(e) {}
+            }
+            if (msg.startsWith("{")) {
+                 try {
+                    const data = JSON.parse(msg);
+                    if(data.temperature) updateChart(data.temperature);
+                 } catch(e) {}
+            }
+        };
+
+        socket.onclose = () => {
+            addLog("Stream Disconnected. Reconnecting...", "warning");
+            setTimeout(connectWebSocket, 5000);
+        };
+    }
+
+    function updateChart(newTemp) {
+        tempData.push(newTemp);
+        tempData.shift();
+
+        const now = new Date();
+        const timeString = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+        labels.push(timeString);
+        labels.shift();
+
+        chart.update('none');
+        
+        // Update KPI Text
+        // document.querySelector('#tempValue').innerText = newTemp + "°C";
+    }
+
+    /* ================= LOGIC & LOGS ================= */
 const logEl = document.getElementById('aiLog');
 const messages = [
   { text: "Connected to Sensor Grid A-04", type: "info" },

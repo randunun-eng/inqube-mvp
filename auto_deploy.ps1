@@ -7,44 +7,82 @@ $ErrorActionPreference = "Stop"
 $InstanceIP = "140.245.244.242"
 $KeyFile = ".\oracle setup\ssh-key-2026-01-04 (1).key"
 $RemoteUser = "ubuntu"
-$ZipFile = "inqube-deploy.zip"
-$DeployDir = "deploy_package"
 
-Write-Host "Starting Deployment..." -ForegroundColor Cyan
+Write-Host "🚀 Starting InQube Deployment to Oracle Cloud..." -ForegroundColor Cyan
 
-# 0. Fix Key Permissions (Crucial for Windows OpenSSH)
-Write-Host "Fixing SSH Key permissions..."
+# 0. Fix Key Permissions
+Write-Host "🔑 Fixing SSH Key permissions..."
 $keyPath = Resolve-Path $KeyFile
 $acl = Get-Acl -Path $keyPath
-$acl.SetAccessRuleProtection($true, $false) # Disable inheritance
+$acl.SetAccessRuleProtection($true, $false)
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($env:USERNAME, "Read", "Allow")
 $acl.SetAccessRule($rule)
 Set-Acl -Path $keyPath -AclObject $acl
-Write-Host "Key permissions fixed." -ForegroundColor Green
+Write-Host "✅ Key permissions fixed." -ForegroundColor Green
 
-# 1. Packaging
-Write-Host "Packaging application..."
-if (Test-Path $DeployDir) { Remove-Item -Recurse -Force $DeployDir }
-if (Test-Path $ZipFile) { Remove-Item -Force $ZipFile }
+# 1. Test SSH Connection
+Write-Host "🔌 Testing SSH connection..."
+$testCmd = "ssh -i `"$KeyFile`" -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${RemoteUser}@${InstanceIP} 'echo OK'"
+try {
+    $result = Invoke-Expression $testCmd 2>&1
+    if ($result -notmatch "OK") {
+        throw "SSH connection test failed"
+    }
+    Write-Host "✅ SSH connection successful." -ForegroundColor Green
+}
+catch {
+    Write-Host "❌ Cannot connect to $InstanceIP" -ForegroundColor Red
+    Write-Host "Error: $_" -ForegroundColor Red
+    exit 1
+}
 
-New-Item -ItemType Directory -Force -Path $DeployDir | Out-Null
-Copy-Item -Recurse -Path "backend" -Destination $DeployDir
-Copy-Item -Recurse -Path "nginx" -Destination $DeployDir
-Copy-Item -Path "docker-compose.yml" -Destination $DeployDir
-Copy-Item -Path "deploy.sh" -Destination $DeployDir
+# 2. Deploy via SSH
+Write-Host "📦 Deploying latest code from GitHub..."
+$sshCmd = "ssh -i `"$KeyFile`" -o StrictHostKeyChecking=no ${RemoteUser}@${InstanceIP}"
 
-Compress-Archive -Path "$DeployDir\*" -DestinationPath $ZipFile
-Remove-Item -Recurse -Force $DeployDir
-Write-Host "Package created." -ForegroundColor Green
+& $sshCmd @'
+set -e
+echo "🚀 Starting deployment..."
 
-# 2. Uploading
-Write-Host "Uploading to Oracle Cloud..."
-$scpCmd = "scp -i `"$KeyFile`" -o StrictHostKeyChecking=no $ZipFile ${RemoteUser}@${InstanceIP}:~/"
-Invoke-Expression $scpCmd
+if [ ! -d "inqube-mvp" ]; then
+    echo "📥 Cloning repository..."
+    git clone https://github.com/randunun-eng/inqube-mvp.git
+else
+    echo "⬇️  Pulling latest changes..."
+    cd inqube-mvp
+    git pull origin main
+    cd ..
+fi
 
-# 3. Executing
-Write-Host "Executing deployment on server..."
-$sshCmd = "ssh -i `"$KeyFile`" -o StrictHostKeyChecking=no ${RemoteUser}@${InstanceIP} 'sudo apt-get install -y unzip && unzip -o inqube-deploy.zip -d inqube-backend && cd inqube-backend && chmod +x deploy.sh && ./deploy.sh'"
-Invoke-Expression $sshCmd
+cd inqube-mvp
 
-Write-Host "DEPLOYMENT COMPLETE!" -ForegroundColor Green
+echo "🛑 Stopping services..."
+docker compose down || true
+
+echo "🔨 Building and starting services..."
+docker compose up -d --build
+
+echo "⏳ Waiting for database..."
+sleep 15
+
+echo "📊 Running database migrations..."
+docker compose exec -T api alembic upgrade head || echo "⚠️  Migrations skipped"
+
+echo "✅ Verifying deployment..."
+docker compose ps
+
+echo ""
+echo "✅ Deployment Complete!"
+echo "🌍 API: http://140.245.244.242"
+echo "📚 Docs: http://140.245.244.242/docs"
+'@
+
+Write-Host ""
+Write-Host "✅ DEPLOYMENT COMPLETE!" -ForegroundColor Green
+Write-Host "🌐 Dashboard: http://140.245.244.242" -ForegroundColor Cyan
+Write-Host "📖 API Docs: http://140.245.244.242/docs" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🧪 Test login:" -ForegroundColor Yellow
+Write-Host 'curl -X POST "http://140.245.244.242/api/v1/login/access-token" \' -ForegroundColor Gray
+Write-Host '  -H "Content-Type: application/x-www-form-urlencoded" \' -ForegroundColor Gray
+Write-Host '  -d "username=admin@inqube.ai&password=admin123"' -ForegroundColor Gray
